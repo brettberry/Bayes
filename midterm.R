@@ -68,10 +68,16 @@ postSampleVar1 = 1/rgamma(10000, (nu_0 + n1)/2, postVar1*(nu_0 + n1)/2)
 postSampleVar2 = 1/rgamma(10000, (nu_0 + n2)/2, postVar2*(nu_0 + n2)/2)
 postSampleVar3 = 1/rgamma(10000, (nu_0 + n3)/2, postVar3*(nu_0 + n3)/2)
 
+# Create a matrix from posterior samples variances
+postSampleVar = matrix(0,10000,3)
+postSampleVar[,1] = postSampleVar1
+postSampleVar[,2] = postSampleVar2
+postSampleVar[,3] = postSampleVar3
+
 # Monte Carlo procedure for post sample mean
-postSampleTheta1 = rnorm(10000, postmean1, sqrt(postSampleVar1/(k_0 + n1)))
-postSampleTheta2 = rnorm(10000, postmean2, sqrt(postSampleVar2/(k_0 + n2)))
-postSampleTheta3 = rnorm(10000, postmean3, sqrt(postSampleVar3/(k_0 + n3)))
+postSampleTheta1 = rnorm(10000, postMeanM1, sqrt(postSampleVar1/(k_0 + n1)))
+postSampleTheta2 = rnorm(10000, postMeanM2, sqrt(postSampleVar2/(k_0 + n2)))
+postSampleTheta3 = rnorm(10000, postMeanM3, sqrt(postSampleVar3/(k_0 + n3)))
 
 # Calculate confidence interval for each school's mean
 cIntervalMean1 = quantile(postSampleTheta1, c(0.025,0.975))
@@ -138,4 +144,3 @@ pp213 = sum(predictPostSample[,2] < predictPostSample[,1] & predictPostSample[,1
 pp231 = sum(predictPostSample[,2] < predictPostSample[,3] & predictPostSample[,3] < predictPostSample[,1])/10000
 pp312 = sum(predictPostSample[,3] < predictPostSample[,1] & predictPostSample[,1] < predictPostSample[,2])/10000
 pp321 = sum(predictPostSample[,3] < predictPostSample[,2] & predictPostSample[,2] < predictPostSample[,1])/10000
-
