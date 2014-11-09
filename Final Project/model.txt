@@ -1,0 +1,17 @@
+
+    
+    model 
+    {
+      #priors
+      beta0 ~ dnorm(0,100)
+      beta1 ~ dnorm(0,100)
+      beta2 ~ dnorm(0,100)
+
+      #Likelihood 
+      for(i in 1:N)
+      {
+        Derogatory.reports[i] ~ dpois(lambda[i])
+        log(lambda[i]) <- beta0 + beta1*Income.per.dependent[i] + beta2*Monthly.credit.card.exp[i]
+      } 
+    
+    }
