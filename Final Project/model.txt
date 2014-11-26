@@ -1,13 +1,9 @@
-
-    
-    model 
+model
     {
-      #priors
       beta0 ~ dnorm(0,100)
       beta1 ~ dnorm(0,100)
       beta2 ~ dnorm(0,100)
 
-      #Likelihood 
       for(i in 1:N)
       {
         Derogatory.reports[i] ~ dpois(lambda[i])
