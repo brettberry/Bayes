@@ -13,9 +13,6 @@ library("BRugs")
 setwd("~/Bayes/Final Project")
 data = read.table("seismic.txt", header=TRUE)
 
-#data["d2"] = c(data["d"]^2)
-#data["m2"] = c(data["m"]^2)
-
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # 
@@ -56,8 +53,8 @@ summary(model4)
 
 # Variable elimination to 3 predictors using forward step function
 fwdModel = step(lm(y ~ 1, data = data),
-                direction="forward", 
-                scope =(~m + d + s + r + I(d^2) + I(m^2)), steps=3)
+								direction="forward", 
+								scope =(~m + d + s + r + I(d^2) + I(m^2)), steps=3)
 
 #BIC Method for variable elimination
 modelBIC = step(model1, k = log(100))
@@ -127,33 +124,78 @@ Portland1 = predict(modelAIC,data.frame(m = 8.0, d = 100, r = 1))
 #
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-# write the BUGS models into the file "model.txt"
-cat("model
-{
-    beta0 ~ dnorm(0,100)
-    beta1 ~ dnorm(0,100)
-    beta2 ~ dnorm(0,100)
-    
-    for(i in 1:N)
-{
-    Derogatory.reports[i] ~ dpois(lambda[i])
-    log(lambda[i]) <- beta0 + beta1*Income.per.dependent[i] + beta2*Monthly.credit.card.exp[i]
-} 
-    
-}", file="model.txt")
+data["d2"] = c(data["d"]^2)
+data["m2"] = c(data["m"]^2)
 
-BRugsFit(
-  modelFile = "model.txt",
-  data = list(
-        "Income.per.dependent"=data$Income.per.dependent,
-        "Monthly.credit.card.exp"=data$Monthly.credit.card.exp,
-        "Derogatory.reports"=data$Derogatory.reports,
-        "N"=100
-        ), 
-  inits =  list(beta0=rnorm(1,0,1),beta1=rnorm(1,0,1),beta2=rnorm(1,0,1)),
-  numChains = 3,
-  parametersToSave = c("beta0","beta1","beta2"),
-  nBurnin = 1000, 
-  nIter = 10000,
-  nThin = 10
-)
+X = as.matrix(data[,4:6])
+XtX = t(X) %*% X
+
+yhat.ols = (X %*% sqrtmodel$coeff[2:4])
+
+
+# write the BUGS models into the file "model.txt"
+cat("
+model
+{
+	for(i in 1:n){
+		m[i] <- inprod(X[i,],beta[]) 
+		y[i] ~ dnorm(m[i], precError)
+	}
+
+	beta[1:3] ~ dmnorm(mu0[],precMV[,]) #prior on coefficients, mu0=0 
+	
+	for(k in 1:3){
+		for (j in 1:3){
+			precMV[k,j]<-XtX[j,k]*precError/n 
+
+
+			# note: this with precError below are the g-prior with g=n
+			# and in terms of precision, giving Sigma0 (Hoff's notation) (prec^-1)* XtX^-1 * g
+		}
+	}
+
+	precError ~ dgamma(0.25,0.25) #prior on 1/sigma^2 for errors 
+	sigma <- pow(precError,-.5) 
+}
+
+", file="model.txt" )
+
+library(BRugs)
+
+brugs.fit = BRugsFit(
+	modelFile="model.txt",
+	data=list(y=data$y,n=100,XtX=XtX,mu0=rep(0,3),X=X),
+	inits=list(beta=c(0,0,0),precError=1),
+	parametersToSave=c("beta","precError","sigma"),
+	numChains=1,
+	# nBurnin = 1000,
+	# nThin = 10,
+	nIter=1000)
+
+brugs.fit$Stats
+
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# 
+# Part f: 
+#
+# Compute the mean-square predictive error of both the Bayesian model and the
+# regression model on the test set seismic.test.txt and compare. Compute the
+# error on y itself, not the transformed value.
+#
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+data.test = read.table("seismic.test.txt", header=TRUE)
+
+data["d2"] = c(data["d"]^2)
+data["m2"] = c(data["m"]^2)
+
+X = as.matrix(data[,4:6])
+XtX = t(X) %*% X
+
+yhat.ols = (X %*% sqrtmodel$coeff[2:4])
+
+yhat.bayes=X%*%(brugs.fit$Stats[1:3,1])
+mse.bayes=mean( (data$y-yhat.bayes)^2 ) 
+mse.ols=mean((data$y-yhat.ols)^2 ) 
+mse.ols
+mse.bayes
