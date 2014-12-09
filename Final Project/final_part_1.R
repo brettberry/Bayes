@@ -300,5 +300,5 @@ samples = coda.samples(fit,100000,variable.names=c("Nsum","pN"),10)
 
 # calculate probability 
 a = as.array(samples[[1]])
-print(sum(a[,2]))
+print(sum(a[,2])/length(a[,2]))
 
