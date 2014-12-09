@@ -1,26 +1,13 @@
+model
+    {
+      beta0 ~ dnorm(0,0.01)
+      beta1 ~ dnorm(0,0.01)
+      beta2 ~ dnorm(0,0.01)
 
-model {
-
-for(i in 1:n) {
-log(m[i]) <- inprod(X[i,],beta[])
-y[i] ~ dpois(m[i])
-ypp[i] ~ dpois(m[i])
-}
-
-log(meannew) <- beta[1] + 5*beta[2] + 1000*beta[3]
-ynew ~ dpois(meannew)
-
-beta[1] ~ dnorm(0,0.01)
-beta[2] ~ dnorm(0,0.01)
-beta[3] ~ dnorm(0,0.01)
-
-pynew <- step(ynew - 1)
-
-for ( i in 1:100) {
-N[i] <- 1 - step(ypp[i] - 1)
-}
-
-Nsum <- sum(N[])
-pN <- step(Nsum - 82)
-
-}
+      for(i in 1:N)
+      {
+        Derogatory.reports[i] ~ dpois(lambda[i])
+        log(lambda[i]) <- beta0 + beta1*Income.per.dependent[i] + beta2*Monthly.credit.card.exp[i]
+      } 
+    
+    }

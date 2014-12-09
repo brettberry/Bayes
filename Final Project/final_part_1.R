@@ -1,9 +1,39 @@
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# 
+# 
+# Final Project
+# Stat 510
+# PSU Fall 2014
+# 
+# author: Brett Berry
+# repository: git://github.com/brettberry/Bayes
+# 
+#
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ 
+
+
+
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+#
+# 
+# Final Part #1
+# 
+# Consider the data in creditscore.csv (from J. Simonoff Analyzing Categorical Data).
+# We are interested in modeling the number of derogatory reports in terms of the five
+# predictors, excluding the conclusion on whether the application was granted or not.
+# 
+#
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
 library("MASS")
 library("BRugs")
 library("sandwich")
+library("rjags")
 
 setwd("~/Bayes/Final Project")
 data = read.csv("creditscore.csv")
+
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 #
@@ -17,7 +47,6 @@ data = read.csv("creditscore.csv")
 #General linearized model of derogatory reports in terms of age, income, monthly credit card expenditure, home ownersip, and self-employment status
 
 fullReg = glm(Derogatory.reports ~ Age + Income.per.dependent + Monthly.credit.card.exp + Own.home + Self.employed, family = "poisson", data = data)
-
 summary(fullReg)
 
 # Linear model reduced to two predictors 
@@ -27,10 +56,14 @@ reducedReg = glm(Derogatory.reports ~ 1, family = "poisson", data = data)
 fwdModel = step(reducedReg, 
                 direction="forward", 
                 scope =(~Age + Income.per.dependent + Monthly.credit.card.exp + Own.home + Self.employed), steps=2)
+summary(fwdModel)
 
 # Alternative method using BIC 
 
-step(fullReg , k = log(100))
+bicModel = step(fullReg , k = log(100))
+summary(bicModel)
+
+
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # 
@@ -56,12 +89,12 @@ cov.model <- vcovHC(partialReg, type="HC0") # numerically approximate covariance
 std.err <- sqrt(diag(cov.model)) # compute standard error
 confidenceInt <- cbind( LL = coef(partialReg) - 1.96 * std.err, UL = coef(partialReg) + 1.96 * std.err) #compute confidence intervals
 
-confidenceInt
+summary(confidenceInt)
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 #
 #
-# Part c: For a new person with Income.per.dependent at 5.0 and Monthly.credit.card.exp
+# Part C: For a new person with Income.per.dependent at 5.0 and Monthly.credit.card.exp
 # at 1000, estimate the probability that y > 0 by plugging parameter estimates into
 # the Poisson probability model (here y denotes the Poisson number of derogatory
 # reports).
@@ -75,13 +108,17 @@ newPerson = data.frame(Income.per.dependent = 5.0, Monthly.credit.card.exp = 100
 #prediction of new data
 predNew = predict(fwdModel, newPerson, type = "response")
 
-sim = replicate(1000, rpois(rep(1, length(predNew)), predNew))
+# plug estimates into the probability model
+sim = replicate(1000, rpois(1, predNew))
+
+# count the proportion of times that y > 0
+print( sum(sim>0)/1000 )
 
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # 
 #
-# Part d:  Do Poisson regression in BUGS with the two predictors, using independent normal
+# Part D:  Do Poisson regression in BUGS with the two predictors, using independent normal
 # priors centered at 0 and with variances equal to 100. Report confidence or
 # credibility intervals using the posterior distributions and draw the DAG.
 # 
@@ -104,30 +141,6 @@ cat("model
     
     }", file="model.txt")
 
-BRugsFit(
-  modelFile = "model.txt",
-  data = list(
-        "Income.per.dependent"=data$Income.per.dependent,
-        "Monthly.credit.card.exp"=data$Monthly.credit.card.exp,
-        "Derogatory.reports"=data$Derogatory.reports,
-        "N"=100
-        ), 
-  inits =  list(beta0=0,beta1=0,beta2=0),
-  numChains = 3,
-  parametersToSave = c("beta0","beta1","beta2"),
-  nBurnin = 1000, 
-  nIter = 100000,
-  nThin = 10
-)
-
-
-# rjags way of doing it
-# 
-library("rjags")
-
-inits = function() {
-  list(beta0=0,beta1=0,beta2=0)
-}
 
 fit = jags.model(
   file="model.txt",
@@ -137,14 +150,17 @@ fit = jags.model(
     "Derogatory.reports"=data$Derogatory.reports,
     "N"=100
     ), 
-  inits=inits,
+  inits=list(beta0=0,beta1=0,beta2=0),
   n.chains=3,
   n.adapt=1000)
 
 # burn in
 update(fit, 1000)
 
+# sample 100k times and extract variables
 samples = coda.samples(fit,100000,variable.names=c("beta0","beta1","beta2"),10)
+
+
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 #
@@ -172,8 +188,8 @@ model {
 	ynew ~ dpois(meannew)
 
 	beta[1] ~ dnorm(0,0.01)
-	beta[1] ~ dnorm(0,0.01)
-	beta[1] ~ dnorm(0,0.01)
+	beta[2] ~ dnorm(0,0.01)
+	beta[3] ~ dnorm(0,0.01)
 
 	pynew <- step(ynew - 1)
 
@@ -185,6 +201,26 @@ model {
 	pN <- step(Nsum - 82)
 
 }", file="model.txt")
+
+
+X = as.matrix(data[,2:3])
+X = cbind(rep(1,100),X)
+
+fit = jags.model(
+  file="model.txt",
+  data=list(y=data$Derogatory.reports,X=X,n=100),
+  inits=list(beta=rep(0,3)),
+  n.chains=1,
+  n.adapt=1000)
+
+# burn in
+update(fit, 1000)
+
+# run 100k samples and extract variables
+samples = coda.samples(fit,100000,variable.names=c("ypp"),10)
+
+summary(samples)
+
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # 
@@ -233,6 +269,7 @@ for (i in 1:2000) {
 nAtleast82 = sum(nZeros >= 82)
 proportionAtleast82 = nAtleast82/2000
 
+summary(proportionAtleast82)
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # 
@@ -244,37 +281,6 @@ proportionAtleast82 = nAtleast82/2000
 # distributions show up on p. 60.)
 # 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-# write the BUGS models into the file "model.txt"
-cat("
-model {
-
-	for(i in 1:n) {
-		log(m[i]) <- inprod(X[i,],beta[])
-		y[i] ~ dpois(m[i])
-		ypp[i] ~ dpois(m[i])
-	}
-
-	log(meannew) <- beta[1] + 5*beta[2] + 1000*beta[3]
-	ynew ~ dpois(meannew)
-
-	beta[1] ~ dnorm(0,0.01)
-	beta[2] ~ dnorm(0,0.01)
-	beta[3] ~ dnorm(0,0.01)
-
-	pynew <- step(ynew - 1)
-
-	for ( i in 1:100) {
-		N[i] <- 1 - step(ypp[i] - 1)
-	}
-
-	Nsum <- sum(N[])
-	pN <- step(Nsum - 82)
-
-}", file="model.txt")
-
-
-library("rjags")
 
 X = as.matrix(data[,2:3])
 X = cbind(rep(1,100),X)
@@ -289,8 +295,10 @@ fit = jags.model(
 # burn in
 update(fit, 1000)
 
+# run 100k samples and extract variables
 samples = coda.samples(fit,100000,variable.names=c("Nsum","pN"),10)
 
-# 
+# calculate probability 
 a = as.array(samples[[1]])
-sum(a[,2])
+print(sum(a[,2]))
+
