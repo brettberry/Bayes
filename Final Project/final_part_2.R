@@ -1,15 +1,33 @@
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # 
 # 
-# Final Project Part #2
+# Final Project
+# Stat 510
+# PSU Fall 2014
 # 
 # author: Brett Berry
+# repository: git://github.com/brettberry/Bayes
 # 
 #
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ 
+
+
+
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+#
+# 
+# Final Part #2
+# 
+# Consider the seismic.txt data set that relates ground motion y to four predictors:
+# magnitude m, distance to epicenter d (km), soil quality s (alluvial or otherwise) and
+# rock property r (tertiary or otherwise). The response y is the amount of time (seconds)
+# that the ground acceleration exceeded 2g.
+# 
+#
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
 
 library("BRugs")
-
 setwd("~/Bayes/Final Project")
 data = read.table("seismic.txt", header=TRUE)
 
